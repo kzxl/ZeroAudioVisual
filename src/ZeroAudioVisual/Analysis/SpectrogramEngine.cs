@@ -107,60 +107,26 @@ namespace ZeroAudioVisual.Analysis
         }
 
         /// <summary>
-        /// In-place Cooley-Tukey Radix-2 Fast Fourier Transform.
+        /// In-place Cooley-Tukey Radix-2 Fast Fourier Transform delegating to ZeroSignal.Core.Spectral.FastFourierTransform.
         /// </summary>
         public static void FftRadix2(float[] real, float[] imag)
         {
+            if (real == null) throw new ArgumentNullException(nameof(real));
+            if (imag == null) throw new ArgumentNullException(nameof(imag));
+
             int n = real.Length;
-            // Bit reversal
-            int j = 0;
-            for (int i = 0; i < n - 1; i++)
+            var complexBuf = new ZeroSignal.Core.Spectral.Complex64[n];
+            for (int i = 0; i < n; i++)
             {
-                if (i < j)
-                {
-                    float tr = real[i]; real[i] = real[j]; real[j] = tr;
-                    float ti = imag[i]; imag[i] = imag[j]; imag[j] = ti;
-                }
-                int k = n >> 1;
-                while (k <= j)
-                {
-                    j -= k;
-                    k >>= 1;
-                }
-                j += k;
+                complexBuf[i] = new ZeroSignal.Core.Spectral.Complex64(real[i], imag[i]);
             }
 
-            // Danielson-Lanczos butterfly
-            for (int len = 2; len <= n; len <<= 1)
+            ZeroSignal.Core.Spectral.FastFourierTransform.FFT(complexBuf);
+
+            for (int i = 0; i < n; i++)
             {
-                double angle = -2.0 * Math.PI / len;
-                float wlen_r = (float)Math.Cos(angle);
-                float wlen_i = (float)Math.Sin(angle);
-
-                for (int i = 0; i < n; i += len)
-                {
-                    float wr = 1.0f;
-                    float wi = 0.0f;
-                    int half = len >> 1;
-                    for (int step = 0; step < half; step++)
-                    {
-                        int u = i + step;
-                        int v = i + step + half;
-
-                        float vr = real[v] * wr - imag[v] * wi;
-                        float vi = real[v] * wi + imag[v] * wr;
-
-                        real[v] = real[u] - vr;
-                        imag[v] = imag[u] - vi;
-                        real[u] += vr;
-                        imag[u] += vi;
-
-                        float next_wr = wr * wlen_r - wi * wlen_i;
-                        float next_wi = wr * wlen_i + wi * wlen_r;
-                        wr = next_wr;
-                        wi = next_wi;
-                    }
-                }
+                real[i] = (float)complexBuf[i].Real;
+                imag[i] = (float)complexBuf[i].Imaginary;
             }
         }
     }
