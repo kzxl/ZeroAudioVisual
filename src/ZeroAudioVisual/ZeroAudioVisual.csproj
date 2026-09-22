@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <PackageReference Include="ZeroPrimitives.Core" Version="1.3.0" />
-    <PackageReference Include="ZeroData.Core" Version="1.2.0" />
-    <PackageReference Include="ZeroSignal.Core" Version="1.0.0" />
-    <PackageReference Include="ZeroVideo" Version="1.1.0" />
+    <PackageReference Include="ZeroData.Core" Version="1.3.0" />
+    <PackageReference Include="ZeroSignal.Core" Version="1.2.0" />
+    <PackageReference Include="ZeroVideo" Version="1.2.0" />
   </ItemGroup>
 </Project>
