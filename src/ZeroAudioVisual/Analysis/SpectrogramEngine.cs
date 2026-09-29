@@ -1,24 +1,25 @@
 using System;
-using System.Collections.Generic;
 
 namespace ZeroAudioVisual.Analysis
 {
     /// <summary>
     /// Window functions used for Fast Fourier Transform spectral leakage reduction.
     /// </summary>
+    [Obsolete("WindowType has been moved to ZeroAudio.Analysis.WindowType in ZeroAudio.Core.")]
     public enum WindowType
     {
-        Rectangular,
-        Hann,
-        Hamming,
-        Blackman
+        Rectangular = 0,
+        Hann = 1,
+        Hamming = 2,
+        Blackman = 3
     }
 
     /// <summary>
-    /// Zero-allocation, high-performance Short-Time Fourier Transform (STFT) engine.
+    /// High-performance Short-Time Fourier Transform (STFT) engine.
     /// Produces time-frequency spectrogram matrices for vibration and acoustic analysis.
     /// </summary>
-    public class SpectrogramEngine
+    [Obsolete("SpectrogramEngine has been moved to ZeroAudio.Analysis.SpectrogramEngine in ZeroAudio.Core.")]
+    public static class SpectrogramEngine
     {
         public static SpectrogramResult ComputeStft(
             ReadOnlySpan<float> signal,
@@ -27,147 +28,55 @@ namespace ZeroAudioVisual.Analysis
             int hopSize = 256,
             WindowType windowType = WindowType.Hann)
         {
-            if ((windowSize & (windowSize - 1)) != 0)
-                throw new ArgumentException("Window size must be a power of two.", nameof(windowSize));
+            var res = ZeroAudio.Analysis.SpectrogramEngine.ComputeStft(
+                signal,
+                sampleRate,
+                windowSize,
+                hopSize,
+                (ZeroAudio.Analysis.WindowType)windowType);
 
-            int totalSamples = signal.Length;
-            if (totalSamples < windowSize)
-            {
-                return new SpectrogramResult(new float[0, 0], new float[0], new float[0], sampleRate, windowSize);
-            }
-
-            int numFrames = (totalSamples - windowSize) / hopSize + 1;
-            int numBins = windowSize / 2 + 1;
-
-            float[,] spectrogram = new float[numFrames, numBins];
-            float[] real = new float[windowSize];
-            float[] imag = new float[windowSize];
-            float[] window = CreateWindow(windowSize, windowType);
-
-            float[] times = new float[numFrames];
-            for (int f = 0; f < numFrames; f++)
-            {
-                times[f] = (f * hopSize) / (float)sampleRate;
-
-                // Windowing
-                int frameOffset = f * hopSize;
-                for (int i = 0; i < windowSize; i++)
-                {
-                    real[i] = signal[frameOffset + i] * window[i];
-                    imag[i] = 0f;
-                }
-
-                // In-place Radix-2 FFT
-                FftRadix2(real, imag);
-
-                // Compute Magnitude in decibels (dB)
-                for (int k = 0; k < numBins; k++)
-                {
-                    float r = real[k];
-                    float im = imag[k];
-                    float mag = (float)Math.Sqrt(r * r + im * im) / (windowSize / 2f);
-                    float db = (mag > 1e-7f) ? 20f * (float)Math.Log10(mag) : -140f;
-                    spectrogram[f, k] = db;
-                }
-            }
-
-            // Frequency axis
-            float[] freqs = new float[numBins];
-            float freqResolution = sampleRate / (float)windowSize;
-            for (int k = 0; k < numBins; k++)
-            {
-                freqs[k] = k * freqResolution;
-            }
-
-            return new SpectrogramResult(spectrogram, freqs, times, sampleRate, windowSize);
-        }
-
-        private static float[] CreateWindow(int size, WindowType type)
-        {
-            float[] w = new float[size];
-            for (int i = 0; i < size; i++)
-            {
-                switch (type)
-                {
-                    case WindowType.Hann:
-                        w[i] = 0.5f * (1f - (float)Math.Cos(2 * Math.PI * i / (size - 1)));
-                        break;
-                    case WindowType.Hamming:
-                        w[i] = 0.54f - 0.46f * (float)Math.Cos(2 * Math.PI * i / (size - 1));
-                        break;
-                    case WindowType.Blackman:
-                        w[i] = 0.42f - 0.5f * (float)Math.Cos(2 * Math.PI * i / (size - 1)) + 0.08f * (float)Math.Cos(4 * Math.PI * i / (size - 1));
-                        break;
-                    default:
-                        w[i] = 1.0f;
-                        break;
-                }
-            }
-            return w;
+            return new SpectrogramResult(res);
         }
 
         /// <summary>
-        /// In-place Cooley-Tukey Radix-2 Fast Fourier Transform delegating to ZeroSignal.Core.Spectral.FastFourierTransform.
+        /// In-place Cooley-Tukey Radix-2 Fast Fourier Transform delegating to ZeroAudio.Analysis.FastFourierTransform.
         /// </summary>
         public static void FftRadix2(float[] real, float[] imag)
         {
             if (real == null) throw new ArgumentNullException(nameof(real));
             if (imag == null) throw new ArgumentNullException(nameof(imag));
 
-            int n = real.Length;
-            var complexBuf = new ZeroSignal.Core.Spectral.Complex64[n];
-            for (int i = 0; i < n; i++)
-            {
-                complexBuf[i] = new ZeroSignal.Core.Spectral.Complex64(real[i], imag[i]);
-            }
-
-            ZeroSignal.Core.Spectral.FastFourierTransform.FFT(complexBuf);
-
-            for (int i = 0; i < n; i++)
-            {
-                real[i] = (float)complexBuf[i].Real;
-                imag[i] = (float)complexBuf[i].Imaginary;
-            }
+            ZeroAudio.Analysis.FastFourierTransform.Forward(real, imag);
         }
     }
 
+    [Obsolete("SpectrogramResult has been moved to ZeroAudio.Analysis.SpectrogramResult in ZeroAudio.Core.")]
     public class SpectrogramResult
     {
-        public float[,] Magnitudes { get; }
-        public float[] Frequencies { get; }
-        public float[] Times { get; }
-        public int SampleRate { get; }
-        public int WindowSize { get; }
+        private readonly ZeroAudio.Analysis.SpectrogramResult _inner;
 
-        public int FrameCount => Magnitudes.GetLength(0);
-        public int BinCount => Magnitudes.GetLength(1);
+        public float[,] Magnitudes => _inner.Magnitudes;
+        public float[] Frequencies => _inner.Frequencies;
+        public float[] Times => _inner.Times;
+        public int SampleRate => _inner.SampleRate;
+        public int WindowSize => _inner.WindowSize;
+
+        public int FrameCount => _inner.FrameCount;
+        public int BinCount => _inner.BinCount;
 
         public SpectrogramResult(float[,] magnitudes, float[] frequencies, float[] times, int sampleRate, int windowSize)
         {
-            Magnitudes = magnitudes;
-            Frequencies = frequencies;
-            Times = times;
-            SampleRate = sampleRate;
-            WindowSize = windowSize;
+            _inner = new ZeroAudio.Analysis.SpectrogramResult(magnitudes, frequencies, times, sampleRate, windowSize);
+        }
+
+        public SpectrogramResult(ZeroAudio.Analysis.SpectrogramResult inner)
+        {
+            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
 
         /// <summary>
         /// Computes time-averaged spectrum (Mean PSD in dB across all time frames).
         /// </summary>
-        public float[] ComputeAverageSpectrum()
-        {
-            if (FrameCount == 0) return new float[0];
-            float[] avg = new float[BinCount];
-            for (int k = 0; k < BinCount; k++)
-            {
-                float sum = 0f;
-                for (int f = 0; f < FrameCount; f++)
-                {
-                    sum += Magnitudes[f, k];
-                }
-                avg[k] = sum / FrameCount;
-            }
-            return avg;
-        }
+        public float[] ComputeAverageSpectrum() => _inner.ComputeAverageSpectrum();
     }
 }
